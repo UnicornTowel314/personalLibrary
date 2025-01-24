@@ -108,7 +108,7 @@ module.exports = function (app) {
         return res.send("delete successful");
       }catch (err) {
         console.log(err);
-        return res.json({ error: "Internal server error" });
+        return res.send("no book exists");
       }
     });
   
