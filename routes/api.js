@@ -12,37 +12,104 @@ const Book = require("../models");
 module.exports = function (app) {
 
   app.route('/api/books')
-    .get(function (req, res){
-      //response will be array of book objects
-      //json res format: [{"_id": bookid, "title": book_title, "commentcount": num_of_comments },...]
+    .get(async function (req, res){
+      try {
+        const books = await Book.find({});
+        if (!books) {
+          return res.json([]);
+        }
+
+        const formatData = books.map((book) => {
+          return {
+            _id: book._id,
+            title: book.title,
+            comments: book.comments,
+            commentcount: book.comments.length
+          }
+        });
+        return res.json(formatData);
+      }catch (err) {
+        console.log(err);
+        res.json([]);
+      }
     })
     
-    .post(function (req, res){
+    .post(async function (req, res){
       let title = req.body.title;
-      //response will contain new book object including atleast _id and title
+      if (!title) {
+        res.send("missing required field title");
+        return;
+      }
+      
+      const newBook = new Book({ title, comments: [] });
+      try {
+        const book = await newBook.save();
+        res.json({ _id: book._id, title: book.title });
+      } catch (err) {
+        console.log(err);
+        res.send("there was an error saving");
+      }
     })
     
-    .delete(function(req, res){
-      //if successful response will be 'complete delete successful'
+    .delete(async function(req, res){
+      try {
+        const deleteAllBooks = await Book.deleteMany({});
+        res.send("complete delete successful");
+      }catch (err) {
+        console.log(err);
+        res.json({ error: "Internal server error" });
+      }
     });
 
 
 
   app.route('/api/books/:id')
-    .get(function (req, res){
-      let bookid = req.params.id;
-      //json res format: {"_id": bookid, "title": book_title, "comments": [comment,comment,...]}
+    .get(async function (req, res){
+      let bookId = req.params.id;
+      const foundBook = await Book.findOne({ _id: bookId });
+      if (!foundBook) {
+        return res.send("no book exists");
+      }
+
+      res.json(foundBook);
     })
     
-    .post(function(req, res){
-      let bookid = req.params.id;
+    .post(async function(req, res){
+      let bookId = req.params.id;
       let comment = req.body.comment;
       //json res format same as .get
+
+      if (!comment) {
+        res.send("missing required field comment");
+        return;
+      }
+
+      try {
+        let book = await Book.findById(bookId);
+        book.comments.push(comment);
+        book = await book.save();
+        res.json({
+          _id: book._id,
+          title: book.title,
+          comments: book.comments
+        });
+      }catch (err) {
+        res.send("no book exists");
+      }
     })
     
-    .delete(function(req, res){
-      let bookid = req.params.id;
-      //if successful response will be 'delete successful'
+    .delete(async function(req, res){
+      let bookId = req.params.id;
+      try {
+        const deletedBook = await Book.findByIdAndDelete(bookId);
+        if (!deletedBook) {
+          return res.send("no book exists");
+        }
+        return res.send("delete successful");
+      }catch (err) {
+        console.log(err);
+        return res.json({ error: "Internal server error" });
+      }
     });
   
 };
